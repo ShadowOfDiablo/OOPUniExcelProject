@@ -1,6 +1,4 @@
-#ifndef __TABLE_H__
-#define  __TABLE_H__
-
+#pragma once
 class Table
 {
     long long unsigned  * p_llu8rows = nullptr;
@@ -10,6 +8,3 @@ class Table
     Table();
 
 };
-
-#endif // __TABLE_H__
-// EOF

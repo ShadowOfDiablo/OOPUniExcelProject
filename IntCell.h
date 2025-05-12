@@ -3,10 +3,11 @@
 class IntCell : public Cell
 {
 private:
-    int value;
+    int value = 0;
 public:
-	explicit IntCell(int value) : value(value) {};
-    Type getType() const override { return Type::INT; }
-    int getValue() const { return value; }
-    void setValue(int newValue) { value = newValue; }
+    IntCell();
+    IntCell(int value);
+    Type getType() const override;
+    int getValue() const;
+    void setValue(int newValue);
 };
