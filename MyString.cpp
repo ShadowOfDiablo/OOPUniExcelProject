@@ -236,3 +236,15 @@ bool operator<=(const MyString& lhs, const MyString& rhs)
 {
 	return strcmp(lhs.c_str(), rhs.c_str()) <= 0;
 }
+
+int MyString::find(char c) const
+{
+	for (int i = 0; i < this->size;i++)
+	{
+		if (c == this->data[i])
+		{
+			return i;
+		}
+	}
+	return CHARNOTFOUND;
+};

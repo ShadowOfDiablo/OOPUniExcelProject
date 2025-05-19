@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-
+#include "ErrorCodes.h"
 class MyString
 {
 	char* data;
@@ -19,6 +19,7 @@ public:
 
 	size_t getSize() const;
 	size_t getCapacity() const;
+	int find(char c) const;
 
 	const char* c_str() const;
 
