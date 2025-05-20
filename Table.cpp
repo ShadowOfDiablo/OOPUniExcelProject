@@ -3,7 +3,6 @@
 #include <iostream>
 
 Table::Table(const MyString& configFilePath) {
-    // Initialize default values
     initialTableRows = 1;
     initialTableCols = 1;
     maxTableRows = 100;
@@ -13,7 +12,6 @@ Table::Table(const MyString& configFilePath) {
     initialAlignment = "left";
     clearConsoleAfterCommand = false;
 
-    // Load configuration from file
     std::ifstream configFile(configFilePath.c_str());
     if (!configFile.is_open()) {
         throw std::runtime_error("Could not open configuration file");
@@ -31,12 +29,10 @@ Table::Table(const MyString& configFilePath) {
 }
 
 void Table::trimMyString(MyString& str) {
-    // Trim leading whitespace
     while (str.getSize() > 0 && isspace(str[0])) {
         str = str.substr(1, str.getSize() - 1);
     }
 
-    // Trim trailing whitespace
     while (str.getSize() > 0 && isspace(str[str.getSize() - 1])) {
         str = str.substr(0, str.getSize() - 1);
     }
@@ -49,7 +45,6 @@ void Table::parseConfigLine(MyString& line) {
     MyString property = line.substr(0, colonPos);
     MyString value = line.substr(colonPos + 1, line.getSize() - colonPos - 1);
 
-    // Trim whitespace
     trimMyString(property);
     trimMyString(value);
 
@@ -99,5 +94,3 @@ void Table::initializeTable() {
         row.resize(initialTableCols);
     }
 }
-
-// Other method implementations would go here...
