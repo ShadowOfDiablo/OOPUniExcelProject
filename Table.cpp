@@ -2,7 +2,8 @@
 #include <sstream>
 #include <iostream>
 
-Table::Table(const MyString& configFilePath) {
+Table::Table(const MyString& configFilePath) 
+{
     initialTableRows = 1;
     initialTableCols = 1;
     maxTableRows = 100;
@@ -29,12 +30,12 @@ Table::Table(const MyString& configFilePath) {
 }
 
 void Table::trimMyString(MyString& str) {
-    while (str.getSize() > 0 && isspace(str[0])) {
-        str = str.substr(1, str.getSize() - 1);
+    while (str.length() > 0 && isspace(str[0])) {
+        str = str.substr(1, str.length() - 1);
     }
 
-    while (str.getSize() > 0 && isspace(str[str.getSize() - 1])) {
-        str = str.substr(0, str.getSize() - 1);
+    while (str.length() > 0 && isspace(str[str.length() - 1])) {
+        str = str.substr(0, str.length() - 1);
     }
 }
 
@@ -43,8 +44,9 @@ void Table::parseConfigLine(MyString& line) {
     if (colonPos == MyString::npos) return;
 
     MyString property = line.substr(0, colonPos);
-    MyString value = line.substr(colonPos + 1, line.getSize() - colonPos - 1);
+    MyString value = line.substr(colonPos + 1, line.length() - colonPos - 1);
 
+    // Trim whitespace
     trimMyString(property);
     trimMyString(value);
 

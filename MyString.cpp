@@ -1,250 +1,177 @@
-﻿#include "MyString.h"
-#include <algorithm>
-#pragma warning (disable : 4996)
+﻿#define _CRT_SECURE_NO_WARNINGS
+#include "Vector.hpp"
+#include "MyString.h"
+#include <iostream>
+#include <cstring>
 
-void MyString::free()
-{
-	delete[] data;
-	data = nullptr;
-	size = 0;
-	capacity = 0;
+MyString::MyString() : data(nullptr), len(0) {
+    allocate_and_copy("");
 }
 
-void MyString::copyFrom(const MyString& other)
-{
-	capacity = other.capacity;
-	data = new char[capacity];
-	strcpy(data, other.data);
-	size = other.size;
+MyString::MyString(const char* s) : data(nullptr), len(0) {
+    if (s) {
+        allocate_and_copy(s);
+    }
+    else {
+        allocate_and_copy("");
+    }
 }
 
-void MyString::resize(unsigned newCapacity)
-{
-	char* newData = new char[newCapacity + 1];
-	strcpy(newData, data);
-	delete[] data;
-	data = newData;
-	capacity = newCapacity;
+MyString::MyString(const MyString& other) : data(nullptr), len(0) {
+    allocate_and_copy(other.data);
 }
 
-static unsigned roundToPowerOfTwo(unsigned v)
-{
-	unsigned res = 1;
-	while (res < v)
-	{
-		res *= 2;
-	}
-
-	return res;
-
-	// think of a way to do this with bitwise operations and suggest solution as PR
+MyString::~MyString() {
+    delete[] data;
 }
 
-static unsigned getMaxResizeCapacity(unsigned v)
-{
-	// we want to atleast resize with 16
-	return std::max(roundToPowerOfTwo(v), 16u); // 16u is used, because we want to return unsigned(u)
+MyString& MyString::operator=(const MyString& other) {
+    if (this != &other) {
+        delete[] data;
+        allocate_and_copy(other.data);
+    }
+    return *this;
 }
 
-/*
-We discussed that sometimes doubling the size when resizing might not be the best practice, and we made an example using a string where we increase the size by a constant value +N instead.
-
-As always, both strategies can be correct in different scenarios, depending on your goals:
-
-When to use what:
-If we expect to work mostly with small strings (short character lengths), using +N (constant growth) is fine — it gives us better memory usage but slightly worse performance due to more frequent allocations.
-
-If we expect to work with large strings, doubling the size gives us better performance (fewer reallocations and copies), but may use more memory.
-
-Example: Appending 100 characters one-by-one
-Doubling strategy:
-Allocated sizes: 16 → 32 → 64 → 128
-Reallocations: 4
-
-+16 growth strategy:
-Allocated sizes: 16 → 32 → 48 → 64 → 80 → 96 → 112 → 128
-Reallocations: 7
-*/
-
-MyString::MyString() : MyString("") {}
-
-MyString::MyString(const char* str)
-{
-	if (!str)
-		str = ""; // some check in case of nullptr
-
-	size = strlen(str);
-	capacity = getMaxResizeCapacity(size);
-	data = new char[capacity];
-	strcpy(data, str);
+MyString& MyString::operator+=(const MyString& other) {
+    int new_len = len + other.len;
+    char* new_data = new char[static_cast<size_t>(new_len) + 1U];
+    (void)strcpy(new_data, data);
+    (void)strcat(new_data, other.data);
+    delete[] data;
+    data = new_data;
+    len = new_len;
+    return *this;
 }
 
-MyString::MyString(const MyString& other)
-{
-	copyFrom(other);
+char MyString::operator[](int index) const {
+    char u8_ret_val = '\0';
+    if ((index >= 0) && (index < len)) {
+        u8_ret_val = data[static_cast<size_t>(index)];
+    }
+    return u8_ret_val;
+}
+int MyString::length() const {
+    return len;
+}
+int MyString::getSize() const {
+    return length();
 }
 
-MyString& MyString::operator=(const MyString& other)
-{
-	if (this != &other)
-	{
-		free();
-		copyFrom(other);
-	}
-
-	return *this;
+size_t MyString::find(char u8_delimiter, size_t u32_start) const {
+    for (size_t u32_idx = u32_start; u32_idx < static_cast<size_t>(len); ++u32_idx) {
+        if (data[u32_idx] == u8_delimiter) {
+            return u32_idx;
+        }
+    }
+    return npos;
 }
 
-MyString::~MyString()
-{
-	free();
-}
+MyString MyString::substr(size_t u32_start, size_t u32_length) const {
+    if (u32_start >= static_cast<size_t>(len)) {
+        return MyString();
+    }
 
-size_t MyString::getSize() const
-{
-	return size;
-}
+    size_t u32_end;
+    if (u32_length == npos || u32_start + u32_length > static_cast<size_t>(len)) {
+        u32_end = static_cast<size_t>(len);
+    }
+    else {
+        u32_end = u32_start + u32_length;
+    }
 
-size_t MyString::getCapacity() const
-{
-	return capacity - 1;
-}
+    size_t sub_length = u32_end - u32_start;
+    char* buffer = new char[sub_length + 1];
 
-const char* MyString::c_str() const
-{
-	return data;
-}
+    for (size_t i = 0; i < sub_length; i++) {
+        buffer[i] = data[u32_start + i];
+    }
+    buffer[sub_length] = '\0';
 
-char& MyString::operator[](unsigned index)
-{
-	/*
-	char e = ' ';
-	if (index > size)
-		return e;
-
-	Returning a local variable (like 'e') by reference is incorrect,
-	because the variable is destroyed when the function exits.
-
-	Leaving this as a note, because no one was able to correct it when I asked in class.
-	We'll eventually add proper bounds checking (and throw exceptions) when we cover that topic.
-
-	For now, if index >= size, this will result in undefined behavior.
-	*/
-	return data[index];
-}
-
-const char& MyString::operator[](unsigned index) const
-{
-	/*
-	char e = ' ';
-	if (index > size)
-		return e;
-
-	Returning a local variable (like 'e') by reference is incorrect,
-	because the variable is destroyed when the function exits.
-
-	Leaving this as a note, because no one was able to correct it when I asked in class.
-	We'll eventually add proper bounds checking (and throw exceptions) when we cover that topic.
-
-	For now, if index >= size, this will result in undefined behavior.
-	*/
-
-	return data[index];
-}
-
-MyString& MyString::operator+=(const MyString& other)
-{
-	if (size + other.size + 1 > capacity)
-		resize(getMaxResizeCapacity(size + other.size));
-
-	strncat(data, other.data, other.size);
-
-	size += other.size;
-
-	return *this;
-}
-
-MyString operator+(const MyString& lhs, const MyString& rhs)
-{
-	MyString res(lhs);
-	res += rhs;
-
-	return res;
-}
-
-std::ostream& operator<<(std::ostream& os, const MyString& str)
-{
-	return os << str.data;
-}
-
-std::istream& operator>>(std::istream& is, MyString& str)
-{
-	char buff[1024];
-	is >> buff;
-
-	size_t buffStringSize = strlen(buff);
-	if (buffStringSize >= str.capacity)
-		str.resize(getMaxResizeCapacity(buffStringSize));
-
-	strcpy(str.data, buff);
-	str.size = buffStringSize;
-
-	return is;
-}
-
-MyString MyString::substr(unsigned begin, unsigned howMany)
-{
-	if (begin + howMany > size)
-		return MyString("");
-
-	MyString res;
-	res.capacity = getMaxResizeCapacity(howMany + 1);
-	res.data = new char[res.capacity];
-	strncat(res.data, data + begin, howMany);
-	res.size = howMany;
-
-	return res;
+    MyString result(buffer);
+    delete[] buffer;
+    return result;
 }
 
 
-bool operator==(const MyString& lhs, const MyString& rhs)
-{
-	return strcmp(lhs.c_str(), rhs.c_str()) == 0;
+Vector<MyString> MyString::split(const MyString& p_myString, char u8_delimiter) {
+    Vector<MyString> c_parts;
+    size_t u32_start = 0U, u32_end = 0U;
+    while ((u32_end = p_myString.find(u8_delimiter, u32_start)) != MyString::npos) {
+        c_parts.push_back(p_myString.substr(u32_start, u32_end - u32_start));
+        u32_start = u32_end + 1U;
+    }
+    c_parts.push_back(p_myString.substr(u32_start));
+    return c_parts;
 }
 
-bool operator!=(const MyString& lhs, const MyString& rhs)
-{
-	return !(lhs == rhs);
+int MyString::find(const MyString& str) const {
+    int u32_ret_val = -1;
+    if (str.length() == 0) {
+        u32_ret_val = 0;
+    }
+    else if (len >= str.length()) {
+        const char* found_ptr = strstr(data, str.c_str());
+        if (found_ptr != nullptr) {
+            u32_ret_val = static_cast<int>(found_ptr - data);
+        }
+    }
+    return u32_ret_val;
 }
 
-bool operator>(const MyString& lhs, const MyString& rhs)
-{
-	return strcmp(lhs.c_str(), rhs.c_str()) > 0;
+MyString MyString::trim(const MyString& s) {
+    int start = 0;
+    while (start < s.length() && (s[start] == ' ' || s[start] == '\n' || s[start] == '\r'))
+        start++;
+    int end = s.length() - 1;
+    while (end >= 0 && (s[end] == ' ' || s[end] == '\n' || s[end] == '\r'))
+        end--;
+    if (start > end)
+        return MyString("");
+    return s.substr(start, end - start + 1);
 }
 
-bool operator>=(const MyString& lhs, const MyString& rhs)
-{
-	return strcmp(lhs.c_str(), rhs.c_str()) >= 0;
+const char* MyString::c_str() const {
+    return data;
 }
 
-bool operator<(const MyString& lhs, const MyString& rhs)
-{
-	return strcmp(lhs.c_str(), rhs.c_str()) < 0;
+MyString operator+(const MyString& lhs, const MyString& rhs) {
+    MyString temp(lhs);
+    temp += rhs;
+    return temp;
 }
 
-bool operator<=(const MyString& lhs, const MyString& rhs)
-{
-	return strcmp(lhs.c_str(), rhs.c_str()) <= 0;
+void MyString::allocate_and_copy(const char* s) {
+    len = static_cast<int>(strlen(s));
+    data = new char[static_cast<size_t>(len) + 1U];
+    (void)strcpy(data, s);
 }
 
-int MyString::find(char c) const
-{
-	for (int i = 0; i < this->size;i++)
-	{
-		if (c == this->data[i])
-		{
-			return i;
-		}
-	}
-	return CHARNOTFOUND;
-};
+std::ostream& operator<<(std::ostream& os, const MyString& s) {
+    os << s.c_str();
+    return os;
+}
+
+bool operator==(const MyString& lhs, const MyString& rhs) {
+    return strcmp(lhs.c_str(), rhs.c_str()) == 0;
+}
+
+bool operator!=(const MyString& lhs, const MyString& rhs) {
+    return !(lhs == rhs);
+}
+
+bool operator<(const MyString& lhs, const MyString& rhs) {
+    return strcmp(lhs.c_str(), rhs.c_str()) < 0;
+}
+
+bool operator>(const MyString& lhs, const MyString& rhs) {
+    return strcmp(lhs.c_str(), rhs.c_str()) > 0;
+}
+
+bool operator<=(const MyString& lhs, const MyString& rhs) {
+    return !(lhs > rhs);
+}
+
+bool operator>=(const MyString& lhs, const MyString& rhs) {
+    return !(lhs < rhs);
+}
