@@ -175,3 +175,61 @@ bool operator<=(const MyString& lhs, const MyString& rhs) {
 bool operator>=(const MyString& lhs, const MyString& rhs) {
     return !(lhs < rhs);
 }
+
+void trimMyString(MyString& str) {
+    while (str.length() > 0 && isspace(str[0])) {
+        str = str.substr(1, str.length() - 1);
+    }
+
+    while (str.length() > 0 && isspace(str[str.length() - 1])) {
+        str = str.substr(0, str.length() - 1);
+    }
+}
+
+bool MyString::startsWith(const MyString& cPrefix) const {
+    if (cPrefix.getSize() > getSize()) {
+        return false;
+    }
+
+    for (size_t u32Idx = 0; u32Idx < cPrefix.getSize(); ++u32Idx) {
+        if (data[u32Idx] != cPrefix[u32Idx]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+Vector<MyString> MyString::split(char cDelimiter) const 
+{
+    Vector<MyString> c_parts;
+    size_t u32_start = 0U, u32_end = 0U;
+    while ((u32_end = find(cDelimiter, u32_start)) != MyString::npos) {
+        c_parts.push_back(substr(u32_start, u32_end - u32_start));
+        u32_start = u32_end + 1U;
+    }
+    c_parts.push_back(substr(u32_start));
+    return c_parts;
+}
+MyString::MyString(double value) {
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "%.10g", value);
+    allocate_and_copy(buffer);
+}
+bool MyString::endsWith(const char* p_suffix) const {
+    size_t u32_suffixLen = strlen(p_suffix);
+    if (u32_suffixLen > getSize()) return false;
+    return strcmp(data + getSize() - u32_suffixLen, p_suffix) == 0;
+}
+MyString MyString::join(const Vector<MyString>& c_tokens, char c_separator, size_t u32_startIndex) {
+    MyString c_result;
+    for (size_t i = u32_startIndex; i < c_tokens.getSize(); ++i) {
+        c_result += c_tokens[i];
+        if (i + 1 < c_tokens.getSize()) {
+            c_result += c_separator;
+        }
+    }
+    return c_result;
+}
+
+
+

@@ -1,6 +1,6 @@
 #ifndef __VECTOR_HPP__
 #define __VECTOR_HPP__
-
+#define _CRT_SECURE_NO_WARNINGS
 template <typename T>
 class Vector {
     T* p_data = nullptr;
