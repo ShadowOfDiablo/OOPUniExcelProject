@@ -13,6 +13,10 @@ const MyString& MyStringCell::getValue() const {
 void MyStringCell::setValue(const MyString& newValue) {
     c_value = newValue;
 }
+size_t MyStringCell::len() const
+{
+    return c_value.getSize();
+}
 MyString MyStringCell::toString() const {
     return c_value;
 }

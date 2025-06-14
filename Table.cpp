@@ -46,7 +46,8 @@ void Table::ensureCapacity(size_t row, size_t col) {
 	llu8totalCols = newCols;
 }
 
-Table::Table() {
+Table::Table() 
+{
 	initializeTable();
 }
 
@@ -65,17 +66,22 @@ Table* Table::getInstance() {
 }
 
 void Table::initializeTable() {
-	p_table = Vector<Vector<Cell*>>(llu8initialTableRows);
+	// Start with an empty table.
+	p_table = Vector<Vector<Cell*>>();
+
+	// Create exactly llu8initialTableRows rows.
 	for (size_t i = 0; i < llu8initialTableRows; i++) {
-		Vector<Cell*> tmp(llu8initialTableCols);
+		Vector<Cell*> tmp;
 		for (size_t j = 0; j < llu8initialTableCols; j++) {
 			tmp.push_back(nullptr);
 		}
 		p_table.push_back(tmp);
 	}
+
 	llu8totalRows = llu8initialTableRows;
 	llu8totalCols = llu8initialTableCols;
 }
+
 
 void Table::parseConfigLine(MyString& line) {
 	size_t pos = line.find(':');
@@ -107,7 +113,8 @@ void Table::parseConfigLine(MyString& line) {
 	}
 }
 
-void Table::validateConfiguration() const {
+void Table::validateConfiguration() const 
+{
 }
 
 void Table::setInitialTableRows(long long unsigned rows) {
@@ -145,7 +152,10 @@ void Table::loadTableFromFile() {
 			continue;
 		size_t len = braceEnd - braceStart - 1;
 		char content[512];
-		std::strncpy(content, braceStart + 1, len);
+		// Manual copy of 'len' characters starting from braceStart+1
+		for (size_t i = 0; i < len; i++) {
+			content[i] = *(braceStart + 1 + i);
+		}
 		content[len] = '\0';
 		char* pos = content;
 		while (true) {
@@ -157,7 +167,10 @@ void Table::loadTableFromFile() {
 				break;
 			size_t tokenLen = tokenEnd - tokenStart - 1;
 			char token[128];
-			std::strncpy(token, tokenStart + 1, tokenLen);
+			// Manual copy of token from tokenStart+1 for tokenLen characters
+			for (size_t i = 0; i < tokenLen; i++) {
+				token[i] = *(tokenStart + 1 + i);
+			}
 			token[tokenLen] = '\0';
 			char* colon = std::strchr(token, ':');
 			if (colon) {
@@ -193,6 +206,7 @@ void Table::loadTableFromFile() {
 	std::cout << "Table loaded successfully!\n";
 }
 
+
 void Table::setCell(size_t row, size_t col, Cell* p_cell) {
 	if (row >= llu8totalRows || col >= llu8totalCols)
 		ensureCapacity(row, col);
@@ -200,86 +214,18 @@ void Table::setCell(size_t row, size_t col, Cell* p_cell) {
 	p_table[row][col] = p_cell;
 }
 
-void Table::run() {
-	char cmd[256];
-	while (true) {
-		std::cout << "> ";
-		if (std::cin.getline(cmd, sizeof(cmd))) {
-			MyString c_cmd = MyString::trim(cmd);
-			Vector<MyString> tokens = c_cmd.split(' ');
-			if (c_cmd == "exit")
-				break;
-			else if (tokens.getSize() >= 2 && tokens[0].getSize() > 0 &&
-				(tokens[0][0] >= 'A' && tokens[0][0] <= 'Z')) {
-				MyString c_second = tokens[1];
-				if (c_second == "insert")
-					insertValue(c_cmd);
-				else if (c_second == "delete")
-					deleteCell(c_cmd);
-				else if (c_second == "reference")
-					referenceCell(c_cmd);
-				else if (c_second[0] == '=') {
-					MyString c_formula = MyString::join(tokens, ' ', 1);
-					MyString c_eval = evaluateFormula(c_formula, static_cast<const Table*>(this));
-					bool b_convertible = true;
-					double d_val = 0.0;
-					try {
-						d_val = stod(c_eval);
-					}
-					catch (...) {
-						b_convertible = false;
-					}
-					MyString c_result;
-					if (b_convertible) {
-						int i_val = (int)d_val;
-						if (fabs(d_val - i_val) < 1e-6)
-							c_result = MyString(toString(i_val).c_str());
-						else
-							c_result = MyString(toString(d_val).c_str());
-					}
-					else {
-						c_result = c_eval;
-					}
-					MyString c_newCmd = tokens[0] + " insert " + c_result;
-					insertValue(c_newCmd);
-				}
-				else
-					std::cout << "Unknown command: " << c_cmd << "\n";
-			}
-			else if (c_cmd.startsWith("open") || c_cmd.startsWith("new") ||
-				c_cmd.startsWith("SUM") || c_cmd.startsWith("AVERAGE") ||
-				c_cmd.startsWith("MIN") || c_cmd.startsWith("MAX") ||
-				c_cmd.startsWith("CONCAT") || c_cmd.startsWith("SUBSTR")) {
-				if (c_cmd.startsWith("open"))
-					openTable(c_cmd);
-				else if (c_cmd.startsWith("new"))
-					createTable(c_cmd);
-				else if (c_cmd.startsWith("SUM"))
-					sumCells(c_cmd);
-				else if (c_cmd.startsWith("AVERAGE"))
-					averageCells(c_cmd);
-				else if (c_cmd.startsWith("MIN"))
-					minCells(c_cmd);
-				else if (c_cmd.startsWith("MAX"))
-					maxCells(c_cmd);
-				else if (c_cmd.startsWith("CONCAT"))
-					concatCells(c_cmd);
-				else if (c_cmd.startsWith("SUBSTR"))
-					substrCell(c_cmd);
-			}
-			else
-				std::cout << "Unknown command: " << c_cmd << "\n";
-			if (bclearConsoleAfterCommand)
-				std::cout << "\033[2J\033[H";
-			printTable();
-		}
-		else {
-			std::cerr << "Error reading command.\n";
-		}
-	}
-	saveTable();
-	std::cout << "Table saved. Exiting.\n";
-}
+//Table* Table::getTable()
+//{
+//	if (instance != nullptr)
+//	{
+//		return instance;
+//	}
+//	else
+//	{
+//		std::cerr << "Table instance is not initialized.\n";
+//		return nullptr;
+//	}
+//}
 
 void Table::insertValue(const MyString& s_cmd) {
 	Vector<MyString> tokens = s_cmd.split(' ');
@@ -376,11 +322,10 @@ void Table::debugTestScript()
 {
 	std::cout << "Running debug test script...\n";
 	insertValue("A1 insert 2");
-	insertValue("B1 insert 9");
 	insertValue("C1 insert 9");
 	insertValue("B2 insert 7");
 	insertValue("C2 insert 2");
-	insertValue("B3 insert 0");
+	insertValue("B3 insert OOP");
 	insertValue("E5 insert TRUE");
 	insertValue("A5 = E5");
 	insertValue("E3 =SUM(A1,9,B1:C2,B3)");
@@ -440,6 +385,39 @@ void Table::minCells(const MyString& s_cmd) {
 	std::cout << "MIN = " << min(args, static_cast<const Table*>(this)) << "\n";
 }
 
+double Max(const Vector<MyString>& tokens, const Table* p_table) {
+	if (tokens.getSize() != 1U)
+		throw std::invalid_argument("MAX requires exactly one range");
+	const MyString& range = tokens[0];
+	size_t colonPos = range.find(':');
+	if (colonPos == MyString::npos)
+		throw std::invalid_argument("MAX requires a range");
+	MyString c_start = range.substr(0, colonPos);
+	MyString c_end = range.substr(colonPos + 1U);
+	size_t startRow, startCol, endRow, endCol;
+	parseCellRef(c_start, startRow, startCol);
+	parseCellRef(c_end, endRow, endCol);
+	double d_max = -1e9;
+	for (size_t r = startRow; r <= endRow; r++) {
+		for (size_t c = startCol; c <= endCol; c++) {
+			Cell* p_cell = p_table->getCell(r, c);
+			if (p_cell) {
+				MyString c_val = p_cell->toString();
+				MyString evaluated = isFormula(c_val) ? evaluateFormula(c_val, p_table) : c_val;
+				try {
+					double d = stod(evaluated);
+					if (d > d_max)
+						d_max = d;
+				}
+				catch (...) {
+					continue;
+				}
+			}
+		}
+	}
+	return d_max;
+}
+
 void Table::maxCells(const MyString& s_cmd) {
 	Vector<MyString> tokens = s_cmd.split(' ');
 	if (tokens.getSize() < 2U) {
@@ -457,7 +435,7 @@ void Table::maxCells(const MyString& s_cmd) {
 			Cell* cell = getCell(r, c);
 			if (cell) {
 				MyString s_val = cell->toString();
-				MyString s_eval = isFormula(s_val) ? evaluateFormula(s_val, static_cast<const Table*>(this)) : s_val;
+				MyString s_eval = isFormula(s_val) ? evaluateFormula(s_val, this) : s_val;
 				double d_tmp = parseLiteral(s_eval);
 				if (d_tmp > d_max)
 					d_max = d_tmp;
@@ -467,56 +445,76 @@ void Table::maxCells(const MyString& s_cmd) {
 	std::cout << "MAX = " << d_max << "\n";
 }
 
-MyString Table::concatCells(const MyString& c_cmd) {
-	unsigned int u32_prefix = 8;
-	if (c_cmd.getSize() < u32_prefix + 1)
+// Helper function to check if a string represents a valid number
+
+static int getValueType(const MyString& s) {
+	if (s == "true" || s == "TRUE" || s == "false" || s == "FALSE") {
+		return 1; // boolean
+	}
+	if (bIsNumber(s)) {
+		return 0; // number
+	}
+	return 2; // string
+}
+
+MyString Table::concatCells(const MyString& c_command) {
+	// Expected syntax: "=CONCAT(<range>, <delimiter>)"
+	// For example: =CONCAT(B2:C3, ";")
+	unsigned int u32Prefix = 8; // length of "=CONCAT("
+	if (c_command.getSize() < u32Prefix + 1)
 		return "";
-	MyString c_inner = c_cmd.substr(u32_prefix, c_cmd.getSize() - u32_prefix - 1);
-	Vector<MyString> v_params = c_inner.split(',');
+
+	// Extract text inside the parentheses (drop the trailing ')')
+	MyString s_inner = c_command.substr(u32Prefix, c_command.getSize() - u32Prefix - 1);
+	Vector<MyString> v_params = s_inner.split(',');
 	if (v_params.getSize() != 2)
 		return "#VALUE!";
-	MyString c_range = MyString::trim(v_params[0]);
-	MyString c_delim = MyString::trim(v_params[1]);
-	if (c_range.find(':') == -1)
+
+	// First parameter is the range (e.g., "B2:C3")
+	MyString s_range = MyString::trim(v_params[0]);
+	// Second parameter is the delimiter (which may be quoted)
+	MyString s_delim = MyString::trim(v_params[1]);
+	if (s_delim.startsWith("\"") && s_delim.endsWith("\""))
+		s_delim = s_delim.substr(1, s_delim.getSize() - 2);
+
+	if (s_range.find(':') == -1)
 		return "#VALUE!";
-	size_t u32_colonPos = c_range.find(':');
-	MyString c_start = MyString::trim(c_range.substr(0, u32_colonPos));
-	MyString c_end = MyString::trim(c_range.substr(u32_colonPos + 1));
-	if (c_start.getSize() < 2 || c_end.getSize() < 2)
+
+	size_t posColon = s_range.find(':');
+	MyString s_start = MyString::trim(s_range.substr(0, posColon));
+	MyString s_end = MyString::trim(s_range.substr(posColon + 1));
+	if (s_start.getSize() < 2 || s_end.getSize() < 2)
 		return "#VALUE!";
-	char c_rowS = c_start[0];
-	char c_rowE = c_end[0];
-	unsigned int u32_rowS = c_rowS - 'A';
-	unsigned int u32_rowE = c_rowE - 'A';
-	MyString c_colStart = c_start.substr(1);
-	MyString c_colEnd = c_end.substr(1);
-	if (!bAllDigits(c_colStart) || !bAllDigits(c_colEnd))
+
+	// Standard spreadsheet notation:
+	// The first character represents the column letter (A → 0, B → 1, etc.).
+	// The remaining part represents the row number (converted to a 0-based index).
+	unsigned int u32StartCol = s_start[0] - 'A';
+	unsigned int u32StartRow = (unsigned int)stoi(s_start.substr(1)) - 1;
+	unsigned int u32EndCol = s_end[0] - 'A';
+	unsigned int u32EndRow = (unsigned int)stoi(s_end.substr(1)) - 1;
+	if (u32StartRow > u32EndRow || u32StartCol > u32EndCol)
 		return "#VALUE!";
-	unsigned int u32_colS = (unsigned int)stoi(c_colStart);
-	unsigned int u32_colE = (unsigned int)stoi(c_colEnd);
-	if (u32_colS > 0)
-		u32_colS--;
-	if (u32_colE > 0)
-		u32_colE--;
-	if (u32_rowS > u32_rowE || u32_colS > u32_colE)
-		return "#VALUE!";
-	MyString c_result = "";
-	bool b_first = true;
-	for (unsigned int u32_r = u32_rowS; u32_r <= u32_rowE; u32_r++) {
-		for (unsigned int u32_c = u32_colS; u32_c <= u32_colE; u32_c++) {
-			Cell* p_cell = getCell(u32_r, u32_c);
+
+	// Iterate over the rectangular submatrix defined by the range.
+	MyString s_result = "";
+	bool bFirst = true;
+	for (unsigned int r = u32StartRow; r <= u32EndRow; r++) {
+		for (unsigned int c = u32StartCol; c <= u32EndCol; c++) {
+			Cell* p_cell = getCell(r, c); // Access cell at row r, col c
 			if (p_cell) {
-				MyString c_val = p_cell->toString();
-				if (c_val != "") {
-					if (!b_first)
-						c_result = c_result + c_delim;
-					c_result = c_result + c_val;
-					b_first = false;
+				MyString s_val = p_cell->toString();
+				// Only include nonempty cells that are entirely numeric.
+				if (s_val != "" && bAllDigits(s_val)) {
+					if (!bFirst)
+						s_result = s_result + s_delim;
+					s_result = s_result + s_val;
+					bFirst = false;
 				}
 			}
 		}
 	}
-	return c_result;
+	return s_result;
 }
 
 void Table::substrCell(const MyString& s_cmd) {
@@ -627,6 +625,100 @@ void Table::printTable() const {
 		}
 		std::cout << "\n";
 	}
+}
+
+void Table::run() {
+	char cmd[256];
+	while (true) {
+		std::cout << "> ";
+		if (std::cin.getline(cmd, sizeof(cmd))) {
+			MyString s_cmd = MyString::trim(cmd);
+			Vector<MyString> tokens = s_cmd.split(' ');
+			if (s_cmd == "exit")
+				break;
+			else if (tokens.getSize() >= 2 && tokens[0].getSize() > 0 &&
+				(tokens[0][0] >= 'A' && tokens[0][0] <= 'Z')) {
+				MyString s_second = tokens[1];
+				if (s_second == "insert")
+					insertValue(s_cmd);
+				else if (s_second == "delete")
+					deleteCell(s_cmd);
+				else if (s_second == "reference")
+					referenceCell(s_cmd);
+				else if (s_second[0] == '=') {
+					// Build the formula string from tokens starting at index 1
+					MyString s_formula = MyString::join(tokens, ' ', 1);
+					MyString s_eval = evaluateFormula(s_formula, static_cast<const Table*>(this));
+					MyString s_result;
+					// If the formula is numeric (SUM, AVERAGE, MIN, MAX), try conversion...
+					if (s_formula.startsWith("=SUM") || s_formula.startsWith("=AVERAGE") ||
+						s_formula.startsWith("=MIN") || s_formula.startsWith("=MAX")) {
+						bool b_convertible = true;
+						double d_val = 0.0;
+						try {
+							d_val = stod(s_eval);
+						}
+						catch (...) {
+							b_convertible = false;
+						}
+						if (b_convertible) {
+							int i_val = (int)d_val;
+							if (fabs(d_val - i_val) < 1e-6)
+								s_result = MyString(toString(i_val).c_str());
+							else
+								s_result = MyString(toString(d_val).c_str());
+						}
+						else {
+							s_result = s_eval;
+						}
+					}
+					else {
+						// For CONCAT, SUBSTR, LEN, etc., always store as text.
+						// This avoids later conversion (which was causing "Invalid int: 7:0").
+						s_result = "\"" + s_eval + "\"";
+					}
+					MyString s_newCmd = tokens[0] + " insert " + s_result;
+					insertValue(s_newCmd);
+				}
+				else
+					std::cout << "Unknown command: " << s_cmd << "\n";
+			}
+			else if (s_cmd.startsWith("open") || s_cmd.startsWith("new") ||
+				s_cmd.startsWith("SUM") || s_cmd.startsWith("AVERAGE") ||
+				s_cmd.startsWith("MIN") || s_cmd.startsWith("MAX") ||
+				s_cmd.startsWith("CONCAT") || s_cmd.startsWith("SUBSTR") ||
+				s_cmd.startsWith("LEN")) {
+				if (s_cmd.startsWith("open"))
+					openTable(s_cmd);
+				else if (s_cmd.startsWith("new"))
+					createTable(s_cmd);
+				else if (s_cmd.startsWith("SUM"))
+					sumCells(s_cmd);
+				else if (s_cmd.startsWith("AVERAGE"))
+					averageCells(s_cmd);
+				else if (s_cmd.startsWith("MIN"))
+					minCells(s_cmd);
+				else if (s_cmd.startsWith("MAX"))
+					maxCells(s_cmd);
+				else if (s_cmd.startsWith("CONCAT"))
+					concatCells(s_cmd);
+				else if (s_cmd.startsWith("SUBSTR"))
+					substrCell(s_cmd);
+				else if (s_cmd.startsWith("LEN"))
+					len(tokens, getInstance());
+			}
+			else
+				std::cout << "Unknown command: " << s_cmd << "\n";
+			if (bclearConsoleAfterCommand)
+				std::cout << "\033[2J\033[H";
+			printTable();
+		}
+		else {
+			std::cerr << "Error reading command.\n";
+		}
+	}
+	saveTable();
+	std::cout << "Table saved. Exiting.\n";
 }
 
 Alignment stoal(const MyString& s_alignment) {

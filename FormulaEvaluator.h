@@ -1,7 +1,10 @@
+// FormulaEvaluator.h
 #pragma once
 
 #include "MyString.h"
 #include "Vector.hpp"
+#include "Table.h"
+
 class Table;
 
 // Conversion functions
@@ -11,11 +14,12 @@ double stod(const MyString& c_str);
 
 // Formula evaluation functions
 bool isFormula(const MyString& c_input);
+bool bIsNumber(const MyString& s);
 MyString evaluateFormula(const MyString& c_expr, const Table* p_table);
 MyString resolveCell(const MyString& c_ref, const Table* p_table);
 Vector<MyString> extractArgs(const MyString& c_expr);
 bool bAllDigits(const MyString& s_num);
-MyString concat(const Vector<MyString>& c_args, const Table* p_table);
+MyString concat(const Vector<MyString>& c_args, const Table* p_table); // Notice: declaration only, no body
 
 // Numeric conversion and operations
 double parseLiteral(const MyString& c_token);

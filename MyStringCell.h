@@ -9,6 +9,7 @@ public:
     Type getType() const override;
     const MyString& getValue() const;
     void setValue(const MyString& newValue);
+	size_t len() const;
     MyString toString() const;
     Cell* clone() const override;
 };
