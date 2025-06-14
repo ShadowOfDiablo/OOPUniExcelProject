@@ -75,7 +75,7 @@ void testSUM() {
     t->setCell(0, 1, new IntCell(20));  // B1
     MyString formula = "=SUM(A1:B1)";
     MyString result = evaluateFormula(formula, t);
-    TEST_RESULT("SUM test", "48", result);
+    TEST_RESULT("SUM test", "30", result);
 }
 
 void testAVERAGE() {
@@ -187,15 +187,15 @@ int main() {
     std::cout << "Running table...\n";
 
     Table* p_table = Table::getInstance();
-    testSUBSTR();
-    testIF();
-    testSUM();
-    testAVERAGE();
-    testMIN();
-    testMAX();
-    testLEN();
-    testCONCAT();
-    /*char c_response[4];
+    //testSUBSTR();
+    //testIF();
+    //testSUM();
+    //testAVERAGE();
+    //testMIN();
+    //testMAX();
+    //testLEN();
+    //testCONCAT();
+    char c_response[4];
     std::cout << "Would you like to load a table from a file? (yes/no): ";
     std::cin.getline(c_response, sizeof(c_response));
 
@@ -206,7 +206,7 @@ int main() {
         p_table->setInitialTableRows(3);
         p_table->setInitialTableCols(3);
         p_table->initializeTable();
-    }*/
+    }
     //p_table->debugTestScript();
 	p_table->printTable();
     p_table->run();

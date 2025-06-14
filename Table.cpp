@@ -113,9 +113,9 @@ void Table::parseConfigLine(MyString& line) {
 	}
 }
 
-void Table::validateConfiguration() const 
-{
-}
+//void Table::validateConfiguration() const 
+//{
+//}
 
 void Table::setInitialTableRows(long long unsigned rows) {
 	llu8initialTableRows = rows;
@@ -142,64 +142,82 @@ void Table::loadTableFromFile() {
 	}
 	char line[512];
 	while (file.getline(line, sizeof(line))) {
-		if (line[0] == '\0')
+		MyString lineStr(line);
+		lineStr = MyString::trim(lineStr);
+		if (lineStr.getSize() == 0)
 			continue;
-		char rowLabel = line[0];
-		size_t row = rowLabel - 'A';
-		char* braceStart = std::strchr(line, '{');
-		char* braceEnd = std::strchr(line, '}');
-		if (!braceStart || !braceEnd)
+		char rowLabel = lineStr[0];
+		size_t currentRow = rowLabel - 'A';
+
+		size_t braceStart = lineStr.find('{');
+		size_t braceEnd = lineStr.find('}');
+		if (braceStart == MyString::npos || braceEnd == MyString::npos)
 			continue;
-		size_t len = braceEnd - braceStart - 1;
-		char content[512];
-		// Manual copy of 'len' characters starting from braceStart+1
-		for (size_t i = 0; i < len; i++) {
-			content[i] = *(braceStart + 1 + i);
-		}
-		content[len] = '\0';
-		char* pos = content;
-		while (true) {
-			char* tokenStart = std::strchr(pos, '[');
-			if (!tokenStart)
-				break;
-			char* tokenEnd = std::strchr(tokenStart, ']');
-			if (!tokenEnd)
-				break;
-			size_t tokenLen = tokenEnd - tokenStart - 1;
-			char token[128];
-			// Manual copy of token from tokenStart+1 for tokenLen characters
-			for (size_t i = 0; i < tokenLen; i++) {
-				token[i] = *(tokenStart + 1 + i);
+
+		MyString cellsStr = lineStr.substr(braceStart + 1, braceEnd - braceStart - 1);
+		Vector<MyString> cellTokens = cellsStr.split(',');
+
+		for (size_t i = 0; i < cellTokens.getSize(); i++) {
+			MyString token = MyString::trim(cellTokens[i]);
+			if (token.getSize() < 2)
+				continue;
+			if (!token.startsWith("[") || !token.endsWith("]"))
+				continue;
+			token = token.substr(1, token.getSize() - 2);
+
+			size_t colonPos = token.find(':');
+			if (colonPos == MyString::npos)
+				continue;
+			MyString addr = MyString::trim(token.substr(0, colonPos));
+			MyString val = MyString::trim(token.substr(colonPos + 1));
+
+			if (addr.getSize() < 2)
+				continue;
+
+			char addrLetter = addr[0];
+			size_t addrRow = addrLetter - 'A';
+			int colNum = 0;
+			try {
+				colNum = stoi(addr.substr(1));
 			}
-			token[tokenLen] = '\0';
-			char* colon = std::strchr(token, ':');
-			if (colon) {
-				*colon = '\0';
-				const char* addr = token;
-				const char* val = colon + 1;
-				if (std::strlen(addr) >= 2) {
-					char addrRow = addr[0];
-					size_t addrRowInd = addrRow - 'A';
-					int colNum = std::atoi(addr + 1);
-					size_t addrColInd = (size_t)colNum - 1;
-					if (addrRowInd == row) {
-						if (std::strlen(val) == 0)
-							setCell(addrRowInd, addrColInd, nullptr);
-						else {
-							MyString s_val(val);
-							if (s_val.startsWith("="))
-								setCell(addrRowInd, addrColInd, new FormulaCell(s_val));
-							else if (s_val.startsWith("\"") && s_val.endsWith("\""))
-								setCell(addrRowInd, addrColInd, new MyStringCell(s_val.substr(1, s_val.getSize() - 2)));
-							else if (s_val.find('.') != -1)
-								setCell(addrRowInd, addrColInd, new DoubleCell(stod(MyString(val))));
-							else
-								setCell(addrRowInd, addrColInd, new IntCell(stoi(MyString(val))));
-						}
+			catch (...) {
+				continue;
+			}
+			size_t addrCol = static_cast<size_t>(colNum) - 1;
+
+			if (addrRow != currentRow)
+				continue;
+
+			try {
+				if (val.getSize() == 0) {
+					setCell(addrRow, addrCol, nullptr);
+				}
+				else if (val.startsWith("=")) 
+				{
+					setCell(addrRow, addrCol, new FormulaCell(val));
+				}
+				else if (val.startsWith("\"") && val.endsWith("\"")) 
+				{
+					setCell(addrRow, addrCol, new MyStringCell(val.substr(1, val.getSize() - 2)));
+				}
+				else if (val == "true" || val == "TRUE" || val == "false" || val == "FALSE") {
+					setCell(addrRow, addrCol, new BoolCell(val == "true" || val == "TRUE"));
+				}
+				else if (bIsNumber(val)) {
+					if (val.find('.') != -1) {
+						setCell(addrRow, addrCol, new DoubleCell(stod(val)));
+					}
+					else {
+						setCell(addrRow, addrCol, new IntCell(stoi(val)));
 					}
 				}
+				else {
+					setCell(addrRow, addrCol, new MyStringCell(val));
+				}
 			}
-			pos = tokenEnd + 1;
+			catch (...) {
+				continue;
+			}
 		}
 	}
 	file.close();
@@ -385,39 +403,6 @@ void Table::minCells(const MyString& s_cmd) {
 	std::cout << "MIN = " << min(args, static_cast<const Table*>(this)) << "\n";
 }
 
-double Max(const Vector<MyString>& tokens, const Table* p_table) {
-	if (tokens.getSize() != 1U)
-		throw std::invalid_argument("MAX requires exactly one range");
-	const MyString& range = tokens[0];
-	size_t colonPos = range.find(':');
-	if (colonPos == MyString::npos)
-		throw std::invalid_argument("MAX requires a range");
-	MyString c_start = range.substr(0, colonPos);
-	MyString c_end = range.substr(colonPos + 1U);
-	size_t startRow, startCol, endRow, endCol;
-	parseCellRef(c_start, startRow, startCol);
-	parseCellRef(c_end, endRow, endCol);
-	double d_max = -1e9;
-	for (size_t r = startRow; r <= endRow; r++) {
-		for (size_t c = startCol; c <= endCol; c++) {
-			Cell* p_cell = p_table->getCell(r, c);
-			if (p_cell) {
-				MyString c_val = p_cell->toString();
-				MyString evaluated = isFormula(c_val) ? evaluateFormula(c_val, p_table) : c_val;
-				try {
-					double d = stod(evaluated);
-					if (d > d_max)
-						d_max = d;
-				}
-				catch (...) {
-					continue;
-				}
-			}
-		}
-	}
-	return d_max;
-}
-
 void Table::maxCells(const MyString& s_cmd) {
 	Vector<MyString> tokens = s_cmd.split(' ');
 	if (tokens.getSize() < 2U) {
@@ -540,21 +525,50 @@ void Table::saveTable() {
 		std::cerr << "Error reading file name.\n";
 		return;
 	}
+
 	MyString s_fileName = MyString::trim(buf);
 	std::ofstream file(s_fileName.c_str());
 	if (!file.is_open()) {
 		std::cerr << "Error opening file for writing: " << s_fileName.c_str() << "\n";
 		return;
 	}
+
+	// Iterate over rows.
 	for (size_t r = 0; r < llu8totalRows; r++) {
-		char rowLabel = 'A' + r;
+		char rowLabel = 'A' + r;  // row label for the file line.
 		file << rowLabel << " {";
 		bool first = true;
+		// Iterate over columns.
 		for (size_t c = 0; c < llu8totalCols; c++) {
 			if (p_table[r][c]) {
 				if (!first)
 					file << ",";
-				MyString s_addr = MyString() + rowLabel + MyString(toString(c + 1).c_str());
+
+				// Build a normal cell address using "letter" + row number.
+				char colLetter = 'A' + c;
+				size_t rowNumber = r + 1;
+
+				// Convert rowNumber to string.
+				std::string rowNumStr;
+				{
+					size_t temp = rowNumber;
+					// Convert temp to string manually.
+					do {
+						char digit = '0' + static_cast<char>(temp % 10);
+						rowNumStr.insert(rowNumStr.begin(), digit);
+						temp /= 10;
+					} while (temp > 0);
+				}
+
+				// Build the address as a std::string by concatenating the column letter and row number.
+				std::string addr;
+				addr.push_back(colLetter);
+				addr.append(rowNumStr);
+
+				// Convert the std::string address back into MyString.
+				MyString s_addr(addr.c_str());
+
+				// Write the cell address and its content.
 				file << "[" << s_addr.c_str() << ":" << p_table[r][c]->toString().c_str() << "]";
 				first = false;
 			}
@@ -673,8 +687,6 @@ void Table::run() {
 						}
 					}
 					else {
-						// For CONCAT, SUBSTR, LEN, etc., always store as text.
-						// This avoids later conversion (which was causing "Invalid int: 7:0").
 						s_result = "\"" + s_eval + "\"";
 					}
 					MyString s_newCmd = tokens[0] + " insert " + s_result;
@@ -719,15 +731,5 @@ void Table::run() {
 	}
 	saveTable();
 	std::cout << "Table saved. Exiting.\n";
-}
-
-Alignment stoal(const MyString& s_alignment) {
-	if (s_alignment == "left")
-		return left;
-	if (s_alignment == "center")
-		return center;
-	if (s_alignment == "right")
-		return right;
-	throw std::invalid_argument("Invalid alignment value");
 }
 

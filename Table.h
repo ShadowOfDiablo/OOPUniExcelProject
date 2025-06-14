@@ -36,7 +36,6 @@ public:
     ~Table();
     void initializeTable();
     void parseConfigLine(MyString& line);
-    void validateConfiguration() const;
     void setInitialTableRows(long long unsigned rows);
     void setInitialTableCols(long long unsigned cols);
     Cell* getCell(size_t u32Row, size_t u32Col) const;

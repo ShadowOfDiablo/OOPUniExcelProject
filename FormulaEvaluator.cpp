@@ -1,14 +1,11 @@
-#include "FormulaEvaluator.h"
-#include "MyString.h"
+﻿#include "FormulaEvaluator.h"
 #include <stdexcept>
 #include <cstring>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
-#include "Cell.h"
-#include "Table.h"
-#include "Table.cpp"
-class Cell;
+#include "MyString.h"
+#include "Vector.hpp"
 bool isFormula(const MyString& c_content) {
     return c_content.getSize() > 0 && c_content[0] == '=';
 }
@@ -35,16 +32,16 @@ bool bIsNumber(const MyString& s) {
         }
         else if (c_chr == '.') {
             if (b_hasDot) {
-                return false; // Multiple decimals
+                return false;
             }
             b_hasDot = true;
         }
         else {
-            return false; // Invalid character
+            return false;
         }
     }
 
-    return b_hasDigit; // Must have at least one digit
+    return b_hasDigit;
 }
 
 double parseLiteral(const MyString& c_token) {
@@ -104,7 +101,6 @@ double sum(const Vector<MyString>& tokens, const Table* p_table) {
             size_t pos = c_arg.find(':');
             MyString c_start = MyString::trim(c_arg.substr(0, pos));
             MyString c_end = MyString::trim(c_arg.substr(pos + 1));
-            // Instead of extracting the letter manually, use parseCellRef:
             size_t rowStart, colStart, rowEnd, colEnd;
             try {
                 parseCellRef(c_start, rowStart, colStart);
@@ -168,12 +164,21 @@ double sum(const Vector<MyString>& tokens, const Table* p_table) {
     return d_total;
 }
 
-void parseCellRef(const MyString& c_ref, size_t& row, size_t& col) {
+void parseCellRef(const MyString& c_ref, size_t& col, size_t& row) {
     if (c_ref.getSize() < 2)
-        throw std::invalid_argument("Invalid cell reference.");
+        throw std::invalid_argument("Invalid cell reference: too short");
 
-    row = c_ref[0] - 'A';
-    col = stoul(c_ref.substr(1)) - 1;
+    char colLetter = c_ref[0];
+    if (colLetter < 'A' || colLetter > 'Z')
+        throw std::invalid_argument("Invalid cell reference: first character must be between A-Z");
+    col = colLetter - 'A';
+
+    MyString rowPart = c_ref.substr(1);
+    for (size_t i = 0; i < rowPart.getSize(); i++) {
+        if (!std::isdigit(rowPart[i]))
+            throw std::invalid_argument("Invalid cell reference: row part must be digits");
+    }
+    row = stoul(rowPart) - 1;
 }
 
 MyString resolveCell(const MyString& c_ref, const Table* p_table) {
@@ -262,9 +267,9 @@ double min(const Vector<MyString>& tokens, const Table* p_table) {
     MyString cStart = range.substr(0, colonPos);
     MyString cEnd = range.substr(colonPos + 1U);
 
-    size_t startRow, startCol, endRow, endCol;
-    parseCellRef(cStart, startRow, startCol);
-    parseCellRef(cEnd, endRow, endCol);
+    size_t startCol, startRow, endCol, endRow;
+    parseCellRef(cStart, startCol, startRow);
+    parseCellRef(cEnd, endCol, endRow);
 
     double dMin = std::numeric_limits<double>::max();
     bool found = false;
@@ -275,7 +280,7 @@ double min(const Vector<MyString>& tokens, const Table* p_table) {
             if (p_cell) {
                 MyString cVal = p_cell->toString();
                 MyString evaluated = isFormula(cVal) ? evaluateFormula(cVal, p_table) : cVal;
-                // Check if the evaluated string is a valid number before trying to convert.
+                evaluated = MyString::trim(evaluated);
                 if (!bIsNumber(evaluated))
                     continue;
                 try {
@@ -286,8 +291,6 @@ double min(const Vector<MyString>& tokens, const Table* p_table) {
                     }
                 }
                 catch (...) {
-                    // Even though we checked bIsNumber, an unexpected error might occur;
-                    // in that case, just skip this cell.
                     continue;
                 }
             }
@@ -299,6 +302,55 @@ double min(const Vector<MyString>& tokens, const Table* p_table) {
 
     return dMin;
 }
+
+double Max(const Vector<MyString>& tokens, const Table* p_table) {
+    if (tokens.getSize() != 1U)
+        throw std::invalid_argument("MAX requires exactly one range");
+
+    const MyString& range = tokens[0];
+    size_t colonPos = range.find(':');
+    if (colonPos == MyString::npos)
+        throw std::invalid_argument("MAX requires a range");
+
+    MyString cStart = range.substr(0, colonPos);
+    MyString cEnd = range.substr(colonPos + 1U);
+
+    size_t startCol, startRow, endCol, endRow;
+    parseCellRef(cStart, startCol, startRow);
+    parseCellRef(cEnd, endCol, endRow);
+
+    double dMax = std::numeric_limits<double>::lowest();
+    bool found = false;
+
+    for (size_t r = startRow; r <= endRow; r++) {
+        for (size_t c = startCol; c <= endCol; c++) {
+            Cell* p_cell = p_table->getCell(r, c);
+            if (p_cell) {
+                MyString cVal = p_cell->toString();
+                MyString evaluated = isFormula(cVal) ? evaluateFormula(cVal, p_table) : cVal;
+                evaluated = MyString::trim(evaluated);
+                if (!bIsNumber(evaluated))
+                    continue;
+                try {
+                    double d = parseLiteral(evaluated);
+                    if (!found || d > dMax) {
+                        dMax = d;
+                        found = true;
+                    }
+                }
+                catch (...) {
+                    continue;
+                }
+            }
+        }
+    }
+
+    if (!found)
+        throw std::invalid_argument("No valid numeric cells found in range for MAX");
+
+    return dMax;
+}
+
 
 
 MyString concat(const Vector<MyString>& tokens, const Table* p_table) {
@@ -329,7 +381,6 @@ MyString concat(const Vector<MyString>& tokens, const Table* p_table) {
                 MyString val = p_cell->toString();
                 if (val.getSize() == 0U)
                     continue;
-                // Only include if all characters are digits.
                 if (!bAllDigits(val))
                     continue;
                 if (!first) {
@@ -437,17 +488,49 @@ MyString evaluateFormula(const MyString& c_expr, const Table* p_table) {
             return "";
         return source.substr(static_cast<size_t>(start), static_cast<size_t>(count));
     }
+    else if (c_content.startsWith("COUNT(")) {
+        if (args.getSize() != 1U)
+            return "#VALUE!";
+
+        const MyString& range = args[0];
+        size_t colonPos = range.find(':');
+        if (colonPos == MyString::npos)
+            return "#VALUE!";
+
+        MyString c_start = range.substr(0, colonPos);
+        MyString c_end = range.substr(colonPos + 1U);
+
+        size_t startRow, startCol, endRow, endCol;
+        try {
+            parseCellRef(c_start, startRow, startCol);
+            parseCellRef(c_end, endRow, endCol);
+        }
+        catch (...) {
+            return "#VALUE!";
+        }
+
+        if (startRow > endRow || startCol > endCol)
+            return "#VALUE!";
+
+        int count = 0;
+        for (size_t r = startRow; r <= endRow; r++) {
+            for (size_t c = startCol; c <= endCol; c++) {
+                if (p_table->getCell(r, c) != nullptr) {
+                    count++;
+                }
+            }
+        }
+        return toString(static_cast<double>(count));
+    }
     else if (c_content.startsWith("IF(")) {
         if (args.getSize() != 3U)
             return "#VALUE!";
         MyString condition = args[0];
-        // Resolve the condition if it is a cell reference or remove quotes.
         if (condition.getSize() > 0 && condition[0] >= 'A' && condition[0] <= 'Z')
             condition = resolveCell(condition, p_table);
         else if (condition.getSize() >= 2 && condition[0] == '"' && condition[condition.getSize() - 1] == '"')
             condition = condition.substr(1U, condition.getSize() - 2U);
 
-        // Build a lowercase version of the condition.
         MyString cond_lower;
         for (size_t i = 0; i < condition.getSize(); i++) {
             char ch = condition[i];
@@ -470,7 +553,6 @@ MyString evaluateFormula(const MyString& c_expr, const Table* p_table) {
         return result;
     }
 
-    // Fallback: if c_content is a simple cell reference (e.g., "E5"), resolve it.
     if (c_content.getSize() >= 2 && c_content[0] >= 'A' && c_content[0] <= 'Z') {
         bool isSimpleRef = true;
         for (size_t i = 1; i < c_content.getSize(); i++) {
@@ -488,6 +570,15 @@ MyString evaluateFormula(const MyString& c_expr, const Table* p_table) {
 }
 
 
+Alignment stoal(const MyString& s_alignment) {
+    if (s_alignment == "left")
+        return left;
+    if (s_alignment == "center")
+        return center;
+    if (s_alignment == "right")
+        return right;
+    throw std::invalid_argument("Invalid alignment value");
+}
 
 int stoi(const MyString& c_str) {
     int u8_value = 0;
