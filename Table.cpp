@@ -66,7 +66,6 @@ Table* Table::getInstance() {
 }
 
 void Table::initializeTable() {
-	// Start with an empty table.
 	p_table = Vector<Vector<Cell*>>();
 
 	// Create exactly llu8initialTableRows rows.
@@ -112,10 +111,6 @@ void Table::parseConfigLine(MyString& line) {
 		exit(1);
 	}
 }
-
-//void Table::validateConfiguration() const 
-//{
-//}
 
 void Table::setInitialTableRows(long long unsigned rows) {
 	llu8initialTableRows = rows;
@@ -231,19 +226,6 @@ void Table::setCell(size_t row, size_t col, Cell* p_cell) {
 	delete p_table[row][col];
 	p_table[row][col] = p_cell;
 }
-
-//Table* Table::getTable()
-//{
-//	if (instance != nullptr)
-//	{
-//		return instance;
-//	}
-//	else
-//	{
-//		std::cerr << "Table instance is not initialized.\n";
-//		return nullptr;
-//	}
-//}
 
 void Table::insertValue(const MyString& s_cmd) {
 	Vector<MyString> tokens = s_cmd.split(' ');
@@ -592,51 +574,77 @@ void Table::openTable(const MyString& s_cmd) {
 
 void Table::printTable() const {
 	const size_t colWidth = 8;
-	std::cout << "   ";
+	const size_t leftMargin = 5;
+
+	for (size_t i = 0; i < leftMargin; i++)
+		std::cout << " ";
 	for (size_t c = 0; c < llu8totalCols; c++) {
 		char buf[16];
 		size_t idx = 0;
 		size_t num = c + 1;
 		while (num > 0) {
-			buf[idx++] = '0' + (char)(num % 10);
+			buf[idx++] = '0' + static_cast<char>(num % 10);
 			num /= 10;
 		}
+		// Reverse the number string.
 		for (size_t i = 0; i < idx / 2; i++) {
 			char temp = buf[i];
 			buf[i] = buf[idx - 1 - i];
 			buf[idx - 1 - i] = temp;
 		}
 		buf[idx] = '\0';
-		size_t padL = (colWidth > idx ? (colWidth - idx) / 2 : 0);
-		size_t padR = colWidth - idx - padL;
-		std::cout << std::string(padL, ' ') << buf << std::string(padR, ' ') << "|";
+		size_t headerLen = idx;
+		size_t padL = (colWidth > headerLen ? (colWidth - headerLen) / 2 : 0);
+		size_t padR = (colWidth > headerLen ? (colWidth - headerLen - padL) : 0);
+
+		std::cout << "|" << " ";
+		for (size_t i = 0; i < padL; i++) std::cout << " ";
+		std::cout << buf;
+		for (size_t i = 0; i < padR; i++) std::cout << " ";
+		std::cout << " ";
 	}
-	std::cout << "\n   ";
-	for (size_t c = 0; c < llu8totalCols; c++)
-		std::cout << std::string(colWidth, '_') << "|";
+	std::cout << "|\n";
+
+	size_t fullWidth = leftMargin + (llu8totalCols * (colWidth + 3)) + 1;
+	for (size_t i = 0; i < fullWidth; i++)
+		std::cout << "-";
 	std::cout << "\n";
+
 	for (size_t r = 0; r < llu8totalRows; r++) {
 		char rowLabel = 'A' + r;
-		std::cout << rowLabel << " |";
+		std::cout << rowLabel;
+		for (size_t i = 1; i < leftMargin; i++)
+			std::cout << " ";
+
 		for (size_t c = 0; c < llu8totalCols; c++) {
+			std::cout << "|" << " ";
 			MyString content = "";
 			if (p_table[r][c])
 				content = p_table[r][c]->toString();
 			if (!bautofit && content.getSize() > llu8visibleCellSymbols)
 				content = content.substr(0, llu8visibleCellSymbols);
 			size_t contentLen = content.getSize();
-			size_t pad = (colWidth > contentLen ? colWidth - contentLen : 0);
+			size_t padTotal = (colWidth > contentLen ? colWidth - contentLen : 0);
 			size_t padL = 0, padR = 0;
-			if (s_initialAlignment == left)
-				padR = pad;
-			else if (s_initialAlignment == center) {
-				padL = pad / 2;
-				padR = pad - padL;
+			if (s_initialAlignment == left) {
+				padR = padTotal;
 			}
-			else if (s_initialAlignment == right)
-				padL = pad;
-			std::cout << std::string(padL, ' ') << content << std::string(padR, ' ') << "|";
+			else if (s_initialAlignment == center) {
+				padL = padTotal / 2;
+				padR = padTotal - padL;
+			}
+			else if (s_initialAlignment == right) {
+				padL = padTotal;
+			}
+			for (size_t i = 0; i < padL; i++) std::cout << " ";
+			std::cout << content.c_str();
+			for (size_t i = 0; i < padR; i++) std::cout << " ";
+			std::cout << " ";
 		}
+		std::cout << "|\n";
+
+		for (size_t i = 0; i < fullWidth; i++)
+			std::cout << "-";
 		std::cout << "\n";
 	}
 }
@@ -660,11 +668,9 @@ void Table::run() {
 				else if (s_second == "reference")
 					referenceCell(s_cmd);
 				else if (s_second[0] == '=') {
-					// Build the formula string from tokens starting at index 1
 					MyString s_formula = MyString::join(tokens, ' ', 1);
 					MyString s_eval = evaluateFormula(s_formula, static_cast<const Table*>(this));
 					MyString s_result;
-					// If the formula is numeric (SUM, AVERAGE, MIN, MAX), try conversion...
 					if (s_formula.startsWith("=SUM") || s_formula.startsWith("=AVERAGE") ||
 						s_formula.startsWith("=MIN") || s_formula.startsWith("=MAX")) {
 						bool b_convertible = true;
